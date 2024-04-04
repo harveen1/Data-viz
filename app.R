@@ -1,0 +1,69 @@
+library(shiny)
+library(tidyverse)
+library(data.table)
+library(zoo)
+library(scales)
+
+dat <- read.csv("CTA_-_Ridership_-_Daily_Boarding_Totals (1).csv")
+dat <- dat %>%
+  mutate(service_date = as.Date(as.yearmon(service_date, format = "%m/%d/%Y")))
+setDT(dat)
+rides_long <- melt(data = dat, 
+                   id.vars = c("service_date", "day_type","total_rides"),
+                   variable.name = "ride_type",
+                   value.name = "count")
+rides_long <- filter(rides_long, day_type=="W")
+
+avg <- rides_long %>% 
+  group_by(service_date,ride_type) %>%
+  summarise(count=mean(count))
+
+avg$ride_type<- recode(avg$ride_type,'bus'="Bus",'rail_boardings'="Rail")
+
+
+ui <- fluidPage(
+  
+  h1("Total Number of Rides on CTA Public Transportation"),
+  p("Public transit and gentrification are intrinsically linked. As younger people are moving into cities, they prefer to live near some sort of public transportation to get to their destination rather than driving.
+    This in turn leads developers to build more, higher-priced apartments closer to transportation which then push out the existing population if they're not able to afford it.
+    It is also important to note here that the significant drop in ridership count in 2020 can be attributed to COVID-19 as many people were working from home and remaining socially distanced.
+    Now that we are returning to normal, ridership numbers have begun to increase."),
+  
+  
+  sidebarLayout(
+    sidebarPanel(
+      checkboxGroupInput(
+        inputId = "checked_groups",
+        label = "Which group do you want to display?",
+        choices = c("Bus","Rail"),
+        selected = c("Bus","Rail")
+      )
+    ),
+    mainPanel(
+      plotOutput("area")
+    )
+  )
+  
+)
+
+# Define server logic 
+server <- function(input, output) {
+  
+  output$area <- renderPlot({
+    plot_dat  <- filter(avg, ride_type %in% input$checked_groups)
+    
+    ggplot(plot_dat, aes(x=service_date,y=count,fill=ride_type))+
+      geom_area() +
+      labs(x="Year",y="Number of Rides",
+           fill="Ride Type")+
+      scale_fill_manual(values = c("blue","pink"))+
+      scale_y_continuous(labels = label_comma())+
+      theme(panel.background = element_rect(fill = "white"),
+            panel.grid.major.y = element_line(color = "grey"),
+            panel.grid.minor.y = element_line(color = "lightgrey"),
+            panel.grid.major.x = element_line(color = "lightgrey"))
+  })
+}
+?scales
+# Run the application 
+shinyApp(ui = ui, server = server)
