@@ -1,7 +1,6 @@
 ---
 title: "Exploring Gentrification in Chicago, IL"
 author: "Harveen Bhathal"
-date: '2022-05-15'
 output: html_document
 runtime: shiny
 resource_files:
